@@ -1,47 +1,72 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import ChatWindow from './ChatWindow';
 import ChatInput from './ChatInput';
-import ChatSidebar from './ChatSidebar';
-import { MessageProps } from './Message';
+import UserList, { User } from './UserList';
+import ChatHeader from './ChatHeader';
+import NotificationSystem, { showNotification } from './NotificationSystem';
 import { playMessageSentSound, playMessageReceivedSound } from '../../utils/sounds';
 
-interface ChatHistory {
+export interface MessageProps {
   id: string;
-  title: string;
+  content: string;
+  senderId: string;
+  receiverId: string;
   timestamp: Date;
-  messages: MessageProps[];
+  attachments?: Array<{
+    type: 'image' | 'video';
+    url: string;
+  }>;
 }
 
 const Chat: React.FC = () => {
-  const [messages, setMessages] = useState<MessageProps[]>([]);
-  const [isTyping, setIsTyping] = useState(false);
-  const [isVoiceActive, setIsVoiceActive] = useState(false);
-  const mediaStreamRef = useRef<MediaStream | null>(null);
-  const [chatHistory, setChatHistory] = useState<ChatHistory[]>([
+  // Mock users data - In a real app, this would come from an API
+  const [users] = useState<User[]>([
     {
       id: '1',
-      title: 'Previous Chat 1',
-      timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000),
-      messages: [],
+      name: 'John Doe',
+      status: 'online',
+      lastSeen: new Date(),
+      unreadCount: 2,
     },
     {
       id: '2',
-      title: 'Previous Chat 2',
-      timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-      messages: [],
+      name: 'Jane Smith',
+      status: 'away',
+      lastSeen: new Date(Date.now() - 1000 * 60 * 5),
+    },
+    {
+      id: '3',
+      name: 'Mike Johnson',
+      status: 'offline',
+      lastSeen: new Date(Date.now() - 1000 * 60 * 30),
     },
   ]);
-  const [activeChat, setActiveChat] = useState('current');
+
+  const [messages, setMessages] = useState<{ [key: string]: MessageProps[] }>({
+    '1': [],
+    '2': [],
+    '3': [],
+  });
+  const [selectedUserId, setSelectedUserId] = useState<string>();
+  const [isTyping, setIsTyping] = useState(false);
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+
+  const selectedUser = users.find(user => user.id === selectedUserId);
 
   const handleSendMessage = async (content: string, attachments?: File[]) => {
-    const userMessage: MessageProps = {
+    if (!selectedUserId) return;
+
+    const newMessage: MessageProps = {
+      id: Date.now().toString(),
       content,
-      isUser: true,
+      senderId: 'currentUser', // In a real app, this would be the logged-in user's ID
+      receiverId: selectedUserId,
       timestamp: new Date(),
     };
 
     if (attachments?.length) {
-      userMessage.attachments = await Promise.all(
+      newMessage.attachments = await Promise.all(
         attachments.map(async (file) => ({
           type: file.type.startsWith('image/') ? 'image' : 'video',
           url: URL.createObjectURL(file),
@@ -49,71 +74,84 @@ const Chat: React.FC = () => {
       );
     }
 
-    setMessages((prev) => [...prev, userMessage]);
+    setMessages(prev => ({
+      ...prev,
+      [selectedUserId]: [...(prev[selectedUserId] || []), newMessage],
+    }));
     playMessageSentSound();
 
-    setIsTyping(true);
+    // Simulate received message
     setTimeout(() => {
-      const aiMessage: MessageProps = {
-        content: 'This is a simulated AI response. Backend integration pending.',
-        isUser: false,
+      const receivedMessage: MessageProps = {
+        id: Date.now().toString(),
+        content: 'This is a simulated response',
+        senderId: selectedUserId,
+        receiverId: 'currentUser',
         timestamp: new Date(),
       };
-      setMessages((prev) => [...prev, aiMessage]);
-      setIsTyping(false);
+
+      setMessages(prev => ({
+        ...prev,
+        [selectedUserId]: [...(prev[selectedUserId] || []), receivedMessage],
+      }));
       playMessageReceivedSound();
+
+      if (document.hidden && notificationPermission === 'granted') {
+        showNotification(`New message from ${selectedUser?.name}`, {
+          body: receivedMessage.content,
+        });
+      }
     }, 1000);
   };
 
-  const handleStartRecording = useCallback(async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaStreamRef.current = stream;
-      setIsVoiceActive(true);
-    } catch (error) {
-      console.error('Error accessing microphone:', error);
-    }
-  }, []);
-
-  const handleStopRecording = useCallback(() => {
-    if (mediaStreamRef.current) {
-      mediaStreamRef.current.getTracks().forEach(track => track.stop());
-      mediaStreamRef.current = null;
-    }
-    setIsVoiceActive(false);
+  const handleSelectUser = useCallback((userId: string) => {
+    setSelectedUserId(userId);
   }, []);
 
   const handleClose = useCallback(() => {
-    console.log('Chat closed');
+    setSelectedUserId(undefined);
   }, []);
 
-  const handleSelectChat = useCallback((id: string) => {
-    setActiveChat(id);
+  const handleNotificationPermissionChange = useCallback((permission: NotificationPermission) => {
+    setNotificationPermission(permission);
   }, []);
 
   return (
-    <div className="flex h-screen bg-gray-100">
-      <ChatSidebar
-        history={chatHistory}
-        onSelectChat={handleSelectChat}
-        activeChat={activeChat}
-      />
-      <div className="flex-1 flex flex-col">
-        <ChatWindow
-          messages={messages}
-          isTyping={isTyping}
-          onClose={handleClose}
-          onStartVoice={handleStartRecording}
-          isVoiceActive={isVoiceActive}
+    <>
+      <NotificationSystem onNotificationPermissionChange={handleNotificationPermissionChange} />
+      <div className="flex h-screen bg-gray-100">
+        <UserList
+          users={users}
+          selectedUserId={selectedUserId}
+          onSelectUser={handleSelectUser}
         />
-        <ChatInput
-          onSendMessage={handleSendMessage}
-          onStartRecording={handleStartRecording}
-          onStopRecording={handleStopRecording}
-          isRecording={isVoiceActive}
-        />
+        {selectedUserId ? (
+          <div className="flex-1 flex flex-col">
+            <ChatHeader selectedUser={selectedUser} onClose={handleClose} />
+            <ChatWindow
+              messages={messages[selectedUserId] || []}
+              isTyping={isTyping}
+              currentUserId="currentUser"
+            />
+            <ChatInput
+              onSendMessage={handleSendMessage}
+              disabled={!selectedUserId}
+            />
+          </div>
+        ) : (
+          <div className="flex-1 flex items-center justify-center bg-gray-50">
+            <div className="text-center">
+              <h2 className="text-xl font-medium text-gray-600 mb-2">
+                Select a user to start chatting
+              </h2>
+              <p className="text-gray-500">
+                Choose from the list of available users on the left
+              </p>
+            </div>
+          </div>
+        )}
       </div>
-    </div>
+    </>
   );
 };
 
