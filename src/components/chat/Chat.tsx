@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import ChatWindow from './ChatWindow';
 import ChatInput from './ChatInput';
 import UserList, { User } from './UserList';
@@ -40,12 +40,27 @@ const Chat: React.FC = () => {
       status: 'offline',
       lastSeen: new Date(Date.now() - 1000 * 60 * 30),
     },
+    {
+      id: '4',
+      name: 'Sarah Wilson',
+      status: 'online',
+      lastSeen: new Date(),
+    },
+    {
+      id: '5',
+      name: 'David Brown',
+      status: 'away',
+      lastSeen: new Date(Date.now() - 1000 * 60 * 15),
+      unreadCount: 1,
+    },
   ]);
 
   const [messages, setMessages] = useState<{ [key: string]: MessageProps[] }>({
     '1': [],
     '2': [],
     '3': [],
+    '4': [],
+    '5': [],
   });
   const [selectedUserId, setSelectedUserId] = useState<string>();
   const [isTyping, setIsTyping] = useState(false);
@@ -120,36 +135,57 @@ const Chat: React.FC = () => {
     <>
       <NotificationSystem onNotificationPermissionChange={handleNotificationPermissionChange} />
       <div className="flex h-screen bg-gray-100">
-        <UserList
-          users={users}
-          selectedUserId={selectedUserId}
-          onSelectUser={handleSelectUser}
-        />
-        {selectedUserId ? (
-          <div className="flex-1 flex flex-col">
-            <ChatHeader selectedUser={selectedUser} onClose={handleClose} />
-            <ChatWindow
-              messages={messages[selectedUserId] || []}
-              isTyping={isTyping}
-              currentUserId="currentUser"
-            />
-            <ChatInput
-              onSendMessage={handleSendMessage}
-              disabled={!selectedUserId}
-            />
-          </div>
-        ) : (
-          <div className="flex-1 flex items-center justify-center bg-gray-50">
-            <div className="text-center">
-              <h2 className="text-xl font-medium text-gray-600 mb-2">
-                Select a user to start chatting
-              </h2>
-              <p className="text-gray-500">
-                Choose from the list of available users on the left
-              </p>
+        {/* Left Panel - User List */}
+        <div className="w-80 h-full flex-shrink-0 bg-violet-900">
+          <UserList
+            users={users}
+            selectedUserId={selectedUserId}
+            onSelectUser={handleSelectUser}
+          />
+        </div>
+
+        {/* Main Chat Area */}
+        <div className="flex-1 flex flex-col">
+          {selectedUserId ? (
+            <>
+              <ChatHeader selectedUser={selectedUser} onClose={handleClose} />
+              <ChatWindow
+                messages={messages[selectedUserId] || []}
+                isTyping={isTyping}
+                currentUserId="currentUser"
+              />
+              <ChatInput
+                onSendMessage={handleSendMessage}
+                disabled={!selectedUserId}
+              />
+            </>
+          ) : (
+            <div className="flex-1 flex items-center justify-center bg-gray-50">
+              <div className="text-center">
+                <h2 className="text-2xl font-medium text-gray-600 mb-2">
+                  Welcome to Cloud Chat
+                </h2>
+                <p className="text-gray-500 mb-4">
+                  Select a user from the left to start chatting
+                </p>
+                <div className="flex justify-center space-x-2">
+                  <div className="flex items-center space-x-1">
+                    <div className="w-2 h-2 rounded-full bg-green-500" />
+                    <span className="text-sm text-gray-500">Online</span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <div className="w-2 h-2 rounded-full bg-yellow-500" />
+                    <span className="text-sm text-gray-500">Away</span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <div className="w-2 h-2 rounded-full bg-gray-500" />
+                    <span className="text-sm text-gray-500">Offline</span>
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </>
   );
