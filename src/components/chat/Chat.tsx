@@ -18,50 +18,106 @@ export interface MessageProps {
   }>;
 }
 
-const Chat: React.FC = () => {
-  // Mock users data - In a real app, this would come from an API
-  const [users] = useState<User[]>([
-    {
-      id: '1',
-      name: 'John Doe',
-      status: 'online',
-      lastSeen: new Date(),
-      unreadCount: 2,
-    },
-    {
-      id: '2',
-      name: 'Jane Smith',
-      status: 'away',
-      lastSeen: new Date(Date.now() - 1000 * 60 * 5),
-    },
-    {
-      id: '3',
-      name: 'Mike Johnson',
-      status: 'offline',
-      lastSeen: new Date(Date.now() - 1000 * 60 * 30),
-    },
-    {
-      id: '4',
-      name: 'Sarah Wilson',
-      status: 'online',
-      lastSeen: new Date(),
-    },
-    {
-      id: '5',
-      name: 'David Brown',
-      status: 'away',
-      lastSeen: new Date(Date.now() - 1000 * 60 * 15),
-      unreadCount: 1,
-    },
-  ]);
+const DUMMY_USERS: User[] = [
+  {
+    id: '1',
+    name: 'John Doe',
+    status: 'online',
+    lastSeen: new Date(),
+    unreadCount: 2,
+    avatar: 'https://ui-avatars.com/api/?name=John+Doe&background=6d28d9&color=fff',
+  },
+  {
+    id: '2',
+    name: 'Jane Smith',
+    status: 'away',
+    lastSeen: new Date(Date.now() - 1000 * 60 * 5),
+    avatar: 'https://ui-avatars.com/api/?name=Jane+Smith&background=6d28d9&color=fff',
+  },
+  {
+    id: '3',
+    name: 'Mike Johnson',
+    status: 'offline',
+    lastSeen: new Date(Date.now() - 1000 * 60 * 30),
+    avatar: 'https://ui-avatars.com/api/?name=Mike+Johnson&background=6d28d9&color=fff',
+  },
+  {
+    id: '4',
+    name: 'Sarah Wilson',
+    status: 'online',
+    lastSeen: new Date(),
+    avatar: 'https://ui-avatars.com/api/?name=Sarah+Wilson&background=6d28d9&color=fff',
+  },
+  {
+    id: '5',
+    name: 'David Brown',
+    status: 'away',
+    lastSeen: new Date(Date.now() - 1000 * 60 * 15),
+    unreadCount: 1,
+    avatar: 'https://ui-avatars.com/api/?name=David+Brown&background=6d28d9&color=fff',
+  },
+  {
+    id: '6',
+    name: 'Emma Davis',
+    status: 'online',
+    lastSeen: new Date(),
+    avatar: 'https://ui-avatars.com/api/?name=Emma+Davis&background=6d28d9&color=fff',
+  },
+  {
+    id: '7',
+    name: 'Alex Turner',
+    status: 'offline',
+    lastSeen: new Date(Date.now() - 1000 * 60 * 120),
+    avatar: 'https://ui-avatars.com/api/?name=Alex+Turner&background=6d28d9&color=fff',
+  },
+  {
+    id: '8',
+    name: 'Olivia Parker',
+    status: 'online',
+    lastSeen: new Date(),
+    unreadCount: 3,
+    avatar: 'https://ui-avatars.com/api/?name=Olivia+Parker&background=6d28d9&color=fff',
+  },
+];
 
-  const [messages, setMessages] = useState<{ [key: string]: MessageProps[] }>({
-    '1': [],
-    '2': [],
-    '3': [],
-    '4': [],
-    '5': [],
-  });
+const DUMMY_MESSAGES: { [key: string]: string[] } = {
+  '1': [
+    'Hey there!',
+    'How are you doing?',
+    'Did you check out the new project?',
+  ],
+  '2': [
+    'Hi! Can we discuss the meeting tomorrow?',
+    'I have some ideas to share.',
+  ],
+  '5': [
+    'Hello! Just wanted to follow up on our discussion.',
+    'I've prepared the documents you requested.',
+  ],
+  '8': [
+    'Hey! Are you available for a quick call?',
+    'We need to review the latest changes.',
+    'I've found some interesting patterns we should discuss.',
+  ],
+};
+
+const Chat: React.FC = () => {
+  const [users] = useState<User[]>(DUMMY_USERS);
+  const [messages, setMessages] = useState<{ [key: string]: MessageProps[] }>(
+    Object.fromEntries(
+      DUMMY_USERS.map(user => [
+        user.id,
+        (DUMMY_MESSAGES[user.id] || []).map((content, index) => ({
+          id: `${user.id}-${index}`,
+          content,
+          senderId: index % 2 === 0 ? user.id : 'currentUser',
+          receiverId: index % 2 === 0 ? 'currentUser' : user.id,
+          timestamp: new Date(Date.now() - (1000 * 60 * (30 - index))),
+        }))
+      ])
+    )
+  );
+
   const [selectedUserId, setSelectedUserId] = useState<string>();
   const [isTyping, setIsTyping] = useState(false);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
@@ -75,7 +131,7 @@ const Chat: React.FC = () => {
     const newMessage: MessageProps = {
       id: Date.now().toString(),
       content,
-      senderId: 'currentUser', // In a real app, this would be the logged-in user's ID
+      senderId: 'currentUser',
       receiverId: selectedUserId,
       timestamp: new Date(),
     };
@@ -166,7 +222,7 @@ const Chat: React.FC = () => {
                   Welcome to Cloud Chat
                 </h2>
                 <p className="text-gray-500 mb-4">
-                  Select a user from the left to start chatting
+                  Select a user from the left to start chatting or create a new chat
                 </p>
                 <div className="flex justify-center space-x-2">
                   <div className="flex items-center space-x-1">
